@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Market‑Top Watch</title>
+  <title>Market-Top Watch</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{--ink:#0f172a;--muted:#64748b;--bg:#f8fafc;--card:#ffffff;--border:#e5e7eb;--good:#10b981;--warn:#f59e0b;--bad:#ef4444;}
+    :root{--ink:#0f172a;--muted:#64748b;--bg:#f8fafc;--card:#ffffff;--border:#e5e7eb;}
     *{box-sizing:border-box} body{margin:0;background:linear-gradient(#f8fafc,#fff);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial}
     .wrap{max-width:1120px;margin:0 auto;padding:24px}
     .row{display:grid;grid-template-columns:1fr;gap:16px}
     @media(min-width:900px){.row{grid-template-columns:1fr 1fr 1fr}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 1px 6px rgba(15,23,42,.06)}
+    .card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 1px 6px rgba(15,23,42,.06)}
     .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .title{display:flex;gap:8px;align-items:center;font-weight:600;color:var(--ink)}
     .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#f1f5f9;color:#475569}
@@ -40,23 +40,25 @@
 
   <script type="text/babel">
     const {useMemo} = React;
-    const {ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, BarChart, Bar, CartesianGrid} = Recharts;
+    const {ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, BarChart, Bar} = Recharts;
 
-    // --- Mock data (replace with real APIs later) ---
+    // --- Mock data ---
     const seriesDays = ["-30d","-21d","-14d","-7d","-3d","-2d","-1d","Now"];
-    const mk = (base, inc, n=seriesDays.length)=>seriesDays.map((t,i)=>({t, v:+(base+i*inc).toFixed(2)}));
+    const mk = (base, inc)=>seriesDays.map((t,i)=>({t, v:+(base+i*inc).toFixed(2)}));
     const dxy = mk(101, .3), ust10 = mk(4.1,.05);
     const funding = seriesDays.map((t,i)=>({t, v: i<5?0.03:0.14}));
-    const oiBtc = mk(18,.6);              // $B
-    const btcDom = mk(54,-.7);            // %
-    const totalMcap = mk(2.1,.05);        // $T
+    const oiBtc = mk(18,.6);
+    const btcDom = mk(54,-.7);
+    const totalMcap = mk(2.1,.05);
     const stableSupply = seriesDays.map((t,i)=>({t, v: 160 + (i>5? -1:1)*i}));
     const whale = [{t:"10:00",v:8},{t:"11:00",v:12},{t:"12:00",v:105},{t:"13:00",v:9},{t:"14:00",v:5},{t:"15:00",v:61},{t:"16:00",v:7},{t:"17:00",v:5}];
-    const fng = mk(72,2); const trends = mk(48,4);
+    const fng = mk(72,2), trends = mk(48,4);
     const mvrv = seriesDays.map((t,i)=>({t, v: i<6?5.5+i*.4:7.6}));
     const pi111 = mk(68,1.4), pi350x2 = mk(70,.6);
     const spx = seriesDays.map((t,i)=>({t, v:5300-i*8}));
-    const iv = seriesDays.map((t,i)=>({t, v: 45 + (i>4? i*1.4: i*.2)}));
+    const iv = seriesDays.map((t,i)=>({t, v:45 + (i>4? i*1.4: i*.2)}));
+
+    const last = a => a[a.length-1];
 
     const Pill = ({label, value, variant="neutral"}) =>
       <span className={`pill ${variant}`}>{label}: <strong>{value}</strong></span>;
@@ -73,12 +75,12 @@
 
     function App(){
       const sustainedHighFunding = useMemo(()=> funding.slice(-4).every(p=>p.v>=0.10), []);
-      const oiSurge = useMemo(()=> (oiBtc.at(-1).v - oiBtc[0].v)/oiBtc[0].v > .20, []);
-      const btcDdown = useMemo(()=> btcDom[0].v - btcDom.at(-1).v >= 2, []);
-      const totalUp = useMemo(()=> totalMcap.at(-1).v > totalMcap[0].v, []);
+      const oiSurge = useMemo(()=> (last(oiBtc).v - oiBtc[0].v)/oiBtc[0].v > .20, []);
+      const btcDdown = useMemo(()=> btcDom[0].v - last(btcDom).v >= 2, []);
+      const totalUp = useMemo(()=> last(totalMcap).v > totalMcap[0].v, []);
       const fngHigh = useMemo(()=> fng.slice(-5).every(p=>p.v>=80), []);
-      const mvrvHot = useMemo(()=> mvrv.at(-1).v >= 7, []);
-      const piCross = useMemo(()=> pi111.at(-1).v > pi350x2.at(-1).v, []);
+      const mvrvHot = useMemo(()=> last(mvrv).v >= 7, []);
+      const piCross = useMemo(()=> last(pi111).v > last(pi350x2).v, []);
 
       const topRisks = [
         sustainedHighFunding && {label:"Funding overheating (BTC)", level:"bad"},
@@ -98,7 +100,7 @@
           <div className="toolbar">
             <span className="pill">Last update: <strong>Now (mock)</strong></span>
             <span className={`pill ${overall.cls}`}>Overall Risk: <strong>{overall.v}</strong></span>
-            <button className="btn primary" onclick={() => alert('In this mock, data is static. We can wire APIs later.')}>Refresh</button>
+            <button className="btn primary" onClick={() => alert('In this mock, data is static. We can wire APIs later.')}>Refresh</button>
           </div>
 
           {topRisks.length>0 &&
@@ -118,7 +120,7 @@
               </ResponsiveContainer>
             </Card>
 
-            <Card title="US 10Y Yield" right={<Pill label="Level" value={`${ust10.at(-1).v.toFixed(2)}%`} variant="warn"/>}>
+            <Card title="US 10Y Yield" right={<Pill label="Level" value={`${last(ust10).v.toFixed(2)}%`} variant="warn"/>}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ust10}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#0f172a" strokeWidth="2"/></LineChart>
               </ResponsiveContainer>
@@ -164,13 +166,13 @@
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Google Trends — Buy Bitcoin" right={<Pill label="Index" value={trends.at(-1).v} variant="warn"/>}>
+            <Card title="Google Trends — Buy Bitcoin" right={<Pill label="Index" value={last(trends).v} variant="warn"/>}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trends}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card title="MVRV Z‑Score" right={<Pill label="Level" value={mvrv.at(-1).v.toFixed(1)} variant={mvrvHot?"bad":"neutral"}/>}>
+            <Card title="MVRV Z‑Score" right={<Pill label="Level" value={last(mvrv).v.toFixed(1)} variant={mvrvHot?"bad":"neutral"}/>}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={mvrv}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#991b1b" strokeWidth="2"/></LineChart>
               </ResponsiveContainer>
@@ -185,7 +187,7 @@
               </ResponsiveContainer>
             </Card>
 
-            <Card title="S&P 500" right={<Pill label="14d" value="−1.6%" />}>
+            <Card title="S&P 500" right={<Pill label="14d" value="−1.6%"/>}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={spx}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
               </ResponsiveContainer>
@@ -199,29 +201,14 @@
           </div>
 
           <div className="footer">
-            <div>
-              <strong>Signals (mock)</strong>
-              <ul>
-                <li>Funding &gt; 0.10% (3d), OI +20% (7d)</li>
-                <li>BTC.D ↓ ≥ 2% while Total Mcap ↑</li>
-                <li>Fear & Greed &gt; 80 (5d), MVRV Z &gt; 7</li>
-                <li>Pi Cycle: 111D &gt; 350D×2</li>
-              </ul>
+            <div><strong>Signals (mock)</strong>
+              <ul><li>Funding > 0.10% (3d), OI +20% (7d)</li><li>BTC.D ↓ ≥ 2% while Total Mcap ↑</li><li>Fear & Greed > 80 (5d), MVRV Z > 7</li><li>Pi Cycle: 111D > 350D×2</li></ul>
             </div>
-            <div>
-              <strong>Next steps</strong>
-              <ul>
-                <li>Wire APIs (Binance, FRED, CoinGecko, DeFiLlama, Deribit)</li>
-                <li>Save last values to compute deltas</li>
-                <li>Telegram alerts + daily digest</li>
-              </ul>
+            <div><strong>Next steps</strong>
+              <ul><li>Wire APIs (Binance, FRED, CoinGecko, DeFiLlama, Deribit)</li><li>Save last values to compute deltas</li><li>Telegram alerts + daily digest</li></ul>
             </div>
-            <div>
-              <strong>Edit thresholds</strong>
-              <ul>
-                <li>Change pill texts in <code>index.html</code></li>
-                <li>Real data can replace mock arrays</li>
-              </ul>
+            <div><strong>Edit thresholds</strong>
+              <ul><li>Change pill texts in index.html</li><li>Real data can replace mock arrays</li></ul>
             </div>
           </div>
         </div>
