@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Market‑Top Watch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--ink:#0f172a;--muted:#64748b;--bg:#f8fafc;--card:#ffffff;--border:#e5e7eb;--good:#10b981;--warn:#f59e0b;--bad:#ef4444;}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(#f8fafc,#fff);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial}
+    .wrap{max-width:1120px;margin:0 auto;padding:24px}
+    .row{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:900px){.row{grid-template-columns:1fr 1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 1px 6px rgba(15,23,42,.06)}
+    .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .title{display:flex;gap:8px;align-items:center;font-weight:600;color:var(--ink)}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#f1f5f9;color:#475569}
+    .pill.good{background:#ecfdf5;color:#065f46;border-color:#d1fae5}
+    .pill.warn{background:#fffbeb;color:#78350f;border-color:#fde68a}
+    .pill.bad{background:#fef2f2;color:#7f1d1d;border-color:#fecaca}
+    .alerts{display:grid;gap:8px;margin-top:8px}
+    .alert{display:flex;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid}
+    .alert.warn{background:#fffbeb;border-color:#fde68a;color:#78350f}
+    .alert.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+    h1{margin:0 0 6px;font-size:26px;color:var(--ink)} p{margin:0;color:#64748b}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;color:#334155;font-size:13px;cursor:pointer}
+    .btn.primary{background:#0f172a;color:#fff;border-color:#0f172a}
+    .footer{display:grid;gap:12px;margin-top:18px;color:#64748b;font-size:14px}
+    @media(min-width:900px){.footer{grid-template-columns:1fr 1fr 1fr}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + Recharts + Babel (CDN) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const {useMemo} = React;
+    const {ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, BarChart, Bar, CartesianGrid} = Recharts;
+
+    // --- Mock data (replace with real APIs later) ---
+    const seriesDays = ["-30d","-21d","-14d","-7d","-3d","-2d","-1d","Now"];
+    const mk = (base, inc, n=seriesDays.length)=>seriesDays.map((t,i)=>({t, v:+(base+i*inc).toFixed(2)}));
+    const dxy = mk(101, .3), ust10 = mk(4.1,.05);
+    const funding = seriesDays.map((t,i)=>({t, v: i<5?0.03:0.14}));
+    const oiBtc = mk(18,.6);              // $B
+    const btcDom = mk(54,-.7);            // %
+    const totalMcap = mk(2.1,.05);        // $T
+    const stableSupply = seriesDays.map((t,i)=>({t, v: 160 + (i>5? -1:1)*i}));
+    const whale = [{t:"10:00",v:8},{t:"11:00",v:12},{t:"12:00",v:105},{t:"13:00",v:9},{t:"14:00",v:5},{t:"15:00",v:61},{t:"16:00",v:7},{t:"17:00",v:5}];
+    const fng = mk(72,2); const trends = mk(48,4);
+    const mvrv = seriesDays.map((t,i)=>({t, v: i<6?5.5+i*.4:7.6}));
+    const pi111 = mk(68,1.4), pi350x2 = mk(70,.6);
+    const spx = seriesDays.map((t,i)=>({t, v:5300-i*8}));
+    const iv = seriesDays.map((t,i)=>({t, v: 45 + (i>4? i*1.4: i*.2)}));
+
+    const Pill = ({label, value, variant="neutral"}) =>
+      <span className={`pill ${variant}`}>{label}: <strong>{value}</strong></span>;
+
+    const Card = ({title, right, children}) => (
+      <div className="card">
+        <div className="head">
+          <div className="title">{title}</div>
+          {right}
+        </div>
+        <div style={{height:160}}>{children}</div>
+      </div>
+    );
+
+    function App(){
+      const sustainedHighFunding = useMemo(()=> funding.slice(-4).every(p=>p.v>=0.10), []);
+      const oiSurge = useMemo(()=> (oiBtc.at(-1).v - oiBtc[0].v)/oiBtc[0].v > .20, []);
+      const btcDdown = useMemo(()=> btcDom[0].v - btcDom.at(-1).v >= 2, []);
+      const totalUp = useMemo(()=> totalMcap.at(-1).v > totalMcap[0].v, []);
+      const fngHigh = useMemo(()=> fng.slice(-5).every(p=>p.v>=80), []);
+      const mvrvHot = useMemo(()=> mvrv.at(-1).v >= 7, []);
+      const piCross = useMemo(()=> pi111.at(-1).v > pi350x2.at(-1).v, []);
+
+      const topRisks = [
+        sustainedHighFunding && {label:"Funding overheating (BTC)", level:"bad"},
+        oiSurge && {label:"Open interest surge + price up", level:"warn"},
+        (btcDdown && totalUp) && {label:"Alt mania (BTC.D ↓ while mcap ↑)", level:"warn"},
+        fngHigh && {label:"Fear & Greed > 80 (5d)", level:"bad"},
+        mvrvHot && {label:"MVRV Z-Score > 7", level:"bad"},
+        piCross && {label:"Pi Cycle cross risk", level:"warn"},
+      ].filter(Boolean);
+
+      const overall = topRisks.length>=4 ? {v:"High", cls:"bad"} : topRisks.length>=2 ? {v:"Elevated", cls:"warn"} : {v:"Normal", cls:"good"};
+
+      return (
+        <div className="wrap">
+          <h1>Market‑Top Watch</h1>
+          <p>Early‑warning dashboard for cycle peak risk</p>
+          <div className="toolbar">
+            <span className="pill">Last update: <strong>Now (mock)</strong></span>
+            <span className={`pill ${overall.cls}`}>Overall Risk: <strong>{overall.v}</strong></span>
+            <button className="btn primary" onclick={() => alert('In this mock, data is static. We can wire APIs later.')}>Refresh</button>
+          </div>
+
+          {topRisks.length>0 &&
+            <div className="alerts">
+              {topRisks.map((r,i)=><div key={i} className={`alert ${r.level}`}>⚠️ {r.label}</div>)}
+            </div>
+          }
+
+          <div className="row" style={{marginTop:12}}>
+            <Card title="DXY (US Dollar Index)" right={<Pill label="14d" value="↑ 4.4%" variant="bad"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dxy} margin={{left:0,right:0,top:10,bottom:0}}>
+                  <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#64748b" stopOpacity="0.35"/><stop offset="95%" stopColor="#64748b" stopOpacity="0"/></linearGradient></defs>
+                  <XAxis dataKey="t" hide/><YAxis hide/><Tooltip/>
+                  <Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="US 10Y Yield" right={<Pill label="Level" value={`${ust10.at(-1).v.toFixed(2)}%`} variant="warn"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ust10}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#0f172a" strokeWidth="2"/></LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="BTC Funding (8h)" right={<Pill label="3d" value="> 0.10%" variant={sustainedHighFunding?"bad":"warn"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={funding}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#ef4444" strokeWidth="2"/></LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="BTC Open Interest ($B)" right={<Pill label="7d" value="+22%" variant={oiSurge?"warn":"neutral"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={oiBtc}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="BTC Dominance vs Total Mcap" right={<Pill label="Signal" value={(btcDdown&&totalUp)?"Alt mania":"Normal"} variant={(btcDdown&&totalUp)?"warn":"neutral"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart>
+                  <Tooltip/><Legend/>
+                  <Line data={btcDom} dataKey="v" name="BTC.D %" stroke="#0f172a" strokeWidth="2"/>
+                  <Line data={totalMcap} dataKey="v" name="Total $T" stroke="#1f2937" strokeDasharray="4 4" strokeWidth="2"/>
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Stablecoin Total Supply ($B)" right={<Pill label="7d" value="−0.6%" variant="warn"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stableSupply}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Whale Deposits to Exchanges ($M)" right={<Pill label="> $100M" value=">1 today" variant="bad"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={whale}><XAxis dataKey="t"/><YAxis hide/><Tooltip/><Bar dataKey="v" fill="#334155"/></BarChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Fear & Greed Index" right={<Pill label="5d avg" value="> 80" variant={fngHigh?"bad":"neutral"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={fng}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#b91c1c" strokeWidth="2"/></LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Google Trends — Buy Bitcoin" right={<Pill label="Index" value={trends.at(-1).v} variant="warn"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trends}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="MVRV Z‑Score" right={<Pill label="Level" value={mvrv.at(-1).v.toFixed(1)} variant={mvrvHot?"bad":"neutral"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mvrv}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#991b1b" strokeWidth="2"/></LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Pi Cycle (111D vs 350D×2)" right={<Pill label="Signal" value={piCross?"Cross risk":"Safe"} variant={piCross?"warn":"good"}/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart><Tooltip/><Legend/>
+                  <Line data={pi111} dataKey="v" name="111D" stroke="#0f172a" strokeWidth="2"/>
+                  <Line data={pi350x2} dataKey="v" name="350D×2" stroke="#1f2937" strokeDasharray="4 4" strokeWidth="2"/>
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="S&P 500" right={<Pill label="14d" value="−1.6%" />}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={spx}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Area dataKey="v" type="monotone" stroke="#334155" strokeWidth="2" fill="url(#g1)"/></AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="BTC/ETH Options IV (proxy)" right={<Pill label="Spike" value="> 40" variant="warn"/>}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={iv}><XAxis dataKey="t" hide/><YAxis hide/><Tooltip/><Line dataKey="v" type="monotone" stroke="#1e293b" strokeWidth="2"/></LineChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
+
+          <div className="footer">
+            <div>
+              <strong>Signals (mock)</strong>
+              <ul>
+                <li>Funding &gt; 0.10% (3d), OI +20% (7d)</li>
+                <li>BTC.D ↓ ≥ 2% while Total Mcap ↑</li>
+                <li>Fear & Greed &gt; 80 (5d), MVRV Z &gt; 7</li>
+                <li>Pi Cycle: 111D &gt; 350D×2</li>
+              </ul>
+            </div>
+            <div>
+              <strong>Next steps</strong>
+              <ul>
+                <li>Wire APIs (Binance, FRED, CoinGecko, DeFiLlama, Deribit)</li>
+                <li>Save last values to compute deltas</li>
+                <li>Telegram alerts + daily digest</li>
+              </ul>
+            </div>
+            <div>
+              <strong>Edit thresholds</strong>
+              <ul>
+                <li>Change pill texts in <code>index.html</code></li>
+                <li>Real data can replace mock arrays</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App/>);
+  </script>
+</body>
+</html>
